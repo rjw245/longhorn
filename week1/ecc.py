@@ -30,7 +30,7 @@ class FieldElement:
         # self.prime is what you'll need to mod against
         # You need to return an element of the same class
         # use: self.__class__(num, prime)
-        raise NotImplementedError
+        return self.__class__((self.num + other.num) % self.prime, self.prime)
 
     def __sub__(self, other):
         if self.prime != other.prime:
@@ -39,7 +39,7 @@ class FieldElement:
         # self.prime is what you'll need to mod against
         # You need to return an element of the same class
         # use: self.__class__(num, prime)
-        raise NotImplementedError
+        return self.__class__((self.num - other.num) % self.prime, self.prime)
 
     def __mul__(self, other):
         if self.prime != other.prime:
@@ -48,13 +48,13 @@ class FieldElement:
         # self.prime is what you'll need to mod against
         # You need to return an element of the same class
         # use: self.__class__(num, prime)
-        raise NotImplementedError
+        return self.__class__((self.num * other.num) % self.prime, self.prime)
 
     def __pow__(self, n):
         # Exercise 3.2: remember Fermat's Little Theorem:
         # Exercise 3.2: self.num**(p-1) % p == 1
         # Exercise 3.2: you might want to use % operator on n
-        raise NotImplementedError
+        return self.__class__(pow(self.num, n%(self.prime-1), self.prime), self.prime)
 
     def __truediv__(self, other):
         if self.prime != other.prime:
@@ -67,7 +67,7 @@ class FieldElement:
         # 1/n == pow(n, p-2, p)
         # You need to return an element of the same class
         # use: self.__class__(num, prime)
-        raise NotImplementedError
+        return self.__class__(self.num * pow(other.num, other.prime-2, other.prime) % self.prime, self.prime)
 
 
 class FieldElementTest(TestCase):
@@ -132,6 +132,9 @@ class Point:
         # Exercise 4.2: make sure that the elliptic curve equation is satisfied
         # y**2 == x**3 + a*x + b
             # if not, raise a ValueError
+        if x is not None and y is not None:
+            if y**2 != x**3 + a*x +b:
+                raise ValueError
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y \
@@ -151,23 +154,34 @@ class Point:
         if self.a != other.a or self.b != other.b:
             raise TypeError('Points {}, {} are not on the same curve'.format(self, other))
         # Case 0.0: self is the point at infinity, return other
+        if self.x is None and self.y is None:
+            return other
         # Case 0.1: other is the point at infinity, return self
+        elif other.x is None and other.y is None:
+            return self
 
         # Case 1: self.x == other.x, self.y != other.y
         # Result is point at infinity
+        elif self.x == other.x and self.y != other.y:
+            return self.__class__(None, None, self.a, self.b)
 
         # Case 2: self.x != other.x
             # Formula (x3,y3)==(x1,y1)+(x2,y2)
-            # s=(y2-y1)/(x2-x1)
-            # x3=s**2-x1-x2
-            # y3=s*(x1-x3)-y1
+        elif self.x != other.x:
+            s=(other.y-self.y)/(other.x-self.x)
+            x3=s**2-self.x-other.x
+            y3=s*(self.x-x3)-self.y
+            return self.__class__(x3, y3, self.a, self.b)
+            
 
         # Case 3: self.x == other.x, self.y == other.y
             # Formula (x3,y3)=(x1,y1)+(x1,y1)
-            # s=(3*x1**2+a)/(2*y1)
-            # x3=s**2-2*x1
-            # y3=s*(x1-x3)-y1
-        raise NotImplementedError
+        elif self.x == other.x and self.y == other.y:
+            s=(3*self.x**2+self.a)/(2*self.y)
+            x3=s**2-2*self.x
+            y3=s*(self.x-x3)-self.y
+            return self.__class__(x3, y3, self.a, self.b)
+            
 
 
 class PointTest(TestCase):
