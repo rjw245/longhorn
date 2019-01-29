@@ -67,7 +67,8 @@ class FieldElement:
         # 1/n == pow(n, p-2, p)
         # You need to return an element of the same class
         # use: self.__class__(num, prime)
-        return self.__class__(self.num * pow(other.num, other.prime-2, other.prime) % self.prime, self.prime)
+        return self*(other**(-1))
+#         return self.__class__(self.num * pow(other.num, other.prime-2, other.prime) % self.prime, self.prime)
 
 
 class FieldElementTest(TestCase):
