@@ -99,25 +99,40 @@ class Tx:
         '''
         # s.read(n) will return n bytes
         # version has 4 bytes, little-endian, interpret as int
+        ver = little_endian_to_int(s.read(4))
         # num_inputs is a varint, use read_varint(s)
+        num_inputs = read_varint(s)
         # each input needs parsing
+        inputs = [TxIn.parse(s) for _ in range(num_inputs)]
         # num_outputs is a varint, use read_varint(s)
+        num_outputs = read_varint(s)
         # each output needs parsing
+        outputs = [TxOut.parse(s) for _ in range(num_outputs)]
         # locktime is 4 bytes, little-endian
+        locktime = little_endian_to_int(s.read(4))
         # return an instance of the class (cls(...))
-        raise NotImplementedError
+        return cls(ver, inputs, outputs, locktime)
+        
 
     def serialize(self):
         '''Returns the byte serialization of the transaction'''
         # serialize version (4 bytes, little endian)
+        serialized = int_to_little_endian(self.version, 4)
         # encode_varint on the number of inputs
+        serialized += encode_varint(len(self.tx_ins))
         # iterate inputs
+        for tx_in in self.tx_ins:
             # serialize each input
+            serialized += tx_in.serialize()
         # encode_varint on the number of outputs
+        serialized += encode_varint(len(self.tx_outs))
         # iterate outputs
+        for tx_out in self.tx_outs:
             # serialize each output
+            serialized += tx_out.serialize()
         # serialize locktime (4 bytes, little endian)
-        raise NotImplementedError
+        serialized += int_to_little_endian(self.locktime, 4)
+        return serialized
 
     def fee(self):
         '''Returns the fee of this transaction in satoshi'''
@@ -127,7 +142,14 @@ class Tx:
         # iterate through outputs
             # for each output get the amount and add to output sum
         # return input sum - output sum
-        raise NotImplementedError
+        input_sum = sum([tx_in.value() for tx_in in self.tx_ins])
+
+        # initialize output sum
+        output_sum = sum([tx_out.amount for tx_out in self.tx_outs])
+
+        # fee is input sum - output sum
+        fee = input_sum - output_sum
+        return fee
 
 
 class TxIn:
@@ -153,20 +175,28 @@ class TxIn:
         '''
         # s.read(n) will return n bytes
         # prev_tx is 32 bytes, little endian
+        prev_tx = s.read(32)[::-1] # Need big endian, reverse
         # prev_index is 4 bytes, little endian, interpret as int
+        prev_index = little_endian_to_int(s.read(4))
         # script_sig is a variable field (length followed by the data)
         # you can use Script.parse to get the actual script
+        script_sig = Script.parse(s)
         # sequence is 4 bytes, little-endian, interpret as int
+        sequence = little_endian_to_int(s.read(4))
         # return an instance of the class (cls(...))
-        raise NotImplementedError
+        return cls(prev_tx, prev_index, script_sig, sequence)
 
     def serialize(self):
         '''Returns the byte serialization of the transaction input'''
         # serialize prev_tx, little endian
+        serialized = self.prev_tx[::-1]
         # serialize prev_index, 4 bytes, little endian
+        serialized += int_to_little_endian(self.prev_index, 4)
         # serialize the script_sig
+        serialized += self.script_sig.serialize()
         # serialize sequence, 4 bytes, little endian
-        raise NotImplementedError
+        serialized += int_to_little_endian(self.sequence, 4)
+        return serialized
 
     def fetch_tx(self, testnet=False):
         return TxFetcher.fetch(self.prev_tx.hex(), testnet=testnet)
@@ -176,18 +206,22 @@ class TxIn:
         Returns the amount in satoshi
         '''
         # use self.fetch_tx to get the transaction
+        tx_obj = self.fetch_tx(testnet=testnet)
         # get the output at self.prev_index
+        tx_out = tx_obj.tx_outs[self.prev_index]
         # return the amount property
-        raise NotImplementedError
+        return tx_out.amount
 
     def script_pubkey(self, testnet=False):
         '''Get the scriptPubKey by looking up the tx hash
         Returns a Script object
         '''
         # use self.fetch_tx to get the transaction
+        tx_obj = self.fetch_tx(testnet=testnet)
         # get the output at self.prev_index
-        # return the script_pubkey property
-        raise NotImplementedError
+        tx_out = tx_obj.tx_outs[self.prev_index]
+        # return the amount property
+        return tx_out.script_pubkey
 
 
 class TxOut:
@@ -206,16 +240,20 @@ class TxOut:
         '''
         # s.read(n) will return n bytes
         # amount is 8 bytes, little endian, interpret as int
+        amount = little_endian_to_int(s.read(8))
         # script_pubkey is a variable field (length followed by the data)
+        script_pubkey = Script.parse(s)
         # you can use Script.parse to get the actual script
         # return an instance of the class (cls(...))
-        raise NotImplementedError
+        return cls(amount, script_pubkey)
 
     def serialize(self):
         '''Returns the byte serialization of the transaction output'''
         # serialize amount, 8 bytes, little endian
+        serialized = int_to_little_endian(self.amount, 8)
         # serialize the script_pubkey
-        raise NotImplementedError
+        serialized += self.script_pubkey.serialize()
+        return serialized
 
 
 class TxTest(TestCase):
