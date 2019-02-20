@@ -23,30 +23,45 @@ class Block:
         '''Takes a byte stream and parses a block. Returns a Block object'''
         # s.read(n) will read n bytes from the stream
         # version - 4 bytes, little endian, interpret as int
+        version = little_endian_to_int(s.read(4))
         # prev_block - 32 bytes, little endian (use [::-1] to reverse)
+        prev_block = s.read(32)[::-1]
         # merkle_root - 32 bytes, little endian (use [::-1] to reverse)
+        merkle_root = s.read(32)[::-1]
         # timestamp - 4 bytes, little endian, interpret as int
+        timestamp = little_endian_to_int(s.read(4))
         # bits - 4 bytes
+        bits = s.read(4)
         # nonce - 4 bytes
+        nonce = s.read(4)
         # initialize class
+        return cls(version, prev_block, merkle_root, timestamp, bits, nonce)
         raise NotImplementedError
 
     def serialize(self):
         '''Returns the 80 byte block header'''
         # version - 4 bytes, little endian
+        serialized = int_to_little_endian(self.version, 4)
         # prev_block - 32 bytes, little endian
+        serialized += self.prev_block[::-1]
         # merkle_root - 32 bytes, little endian
+        serialized += self.merkle_root[::-1]
         # timestamp - 4 bytes, little endian
+        serialized += int_to_little_endian(self.timestamp, 4)
         # bits - 4 bytes
+        serialized += self.bits
         # nonce - 4 bytes
-        raise NotImplementedError
+        serialized += self.nonce
+        return serialized
 
     def hash(self):
         '''Returns the hash256 interpreted little endian of the block'''
         # serialize
+        h = self.serialize()
         # hash256
+        h = hash256(h)
         # reverse
-        raise NotImplementedError
+        return h[::-1]
 
     def id(self):
         '''Human-readable hexadecimal of the block hash'''
@@ -55,21 +70,21 @@ class Block:
     def bip9(self):
         '''Returns whether this block is signaling readiness for BIP9'''
         # BIP9 is signalled if the top 3 bits are 001
-        # remember version is 32 bytes so right shift 29 (>> 29) and see if
+        # remember version is 32 bits so right shift 29 (>> 29) and see if
         # that is 001
-        raise NotImplementedError
+        return (self.version>>29)==1
 
     def bip91(self):
         '''Returns whether this block is signaling readiness for BIP91'''
         # BIP91 is signalled if the 5th bit from the right is 1
         # shift 4 bits to the right and see if the last bit is 1
-        raise NotImplementedError
+        return self.version >> 4 & 1 == 1
 
     def bip141(self):
         '''Returns whether this block is signaling readiness for BIP141'''
         # BIP91 is signalled if the 2nd bit from the right is 1
         # shift 1 bit to the right and see if the last bit is 1
-        raise NotImplementedError
+        return self.version >> 1 & 1 == 1
 
     def target(self):
         '''Returns the proof-of-work target based on the bits'''
@@ -77,20 +92,37 @@ class Block:
         # the first three bytes are the coefficient in little endian
         # the formula is:
         # coefficient * 256**(exponent-3)
-        raise NotImplementedError
+        bits = self.bits
+
+        # last byte is exponent
+        exponent = bits[-1]
+
+        # first three bytes are the coefficient in little endian
+        coeff = little_endian_to_int(bits[0:3])
+
+        # plug into formula coefficient * 256^(exponent-3) to get the target
+        target = coeff * 256**(exponent-3)
+        return target
 
     def difficulty(self):
         '''Returns the block difficulty based on the bits'''
         # note difficulty is (target of lowest difficulty) / (self's target)
         # lowest difficulty has bits that equal 0xffff001d
-        raise NotImplementedError
+        return 0xffff * 256**(0x1d-3) / self.target()
 
     def check_pow(self):
         '''Returns whether this block satisfies proof of work'''
-        # get the hash256 of the serialization of this block
-        # interpret this hash as a little-endian number
-        # return whether this integer is less than the target
-        raise NotImplementedError
+        # hash256 the serialization
+        h256 = hash256(self.serialize())
+
+        # interpret the result as a number in little endian
+        proof = int.from_bytes(h256, 'little')
+
+        # get the target
+        target = self.target()
+
+        # check proof of work < target
+        return (proof < target)
 
 
 class BlockTest(TestCase):

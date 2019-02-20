@@ -220,13 +220,18 @@ class Script:
     def address(self, testnet=False):
         '''Returns the address corresponding to the script'''
         # if p2pkh
+        if self.is_p2pkh_script_pubkey():
             # hash160 is the 3rd command
+            h160 = self.commands[2]
             # convert to p2pkh address using h160_to_p2pkh_address (remember testnet)
+            return h160_to_p2pkh_address(h160, testnet=testnet)
         # if p2sh
+        elif self.is_p2sh_script_pubkey():
             # hash160 is the 2nd command
+            h160 = self.commands[1]
             # convert to p2sh address using h160_to_p2sh_address (remember testnet)
-        # raise a ValueError
-        raise NotImplementedError
+            return h160_to_p2sh_address(h160, testnet=testnet)
+        raise ValueError
 
 
 class ScriptTest(TestCase):
